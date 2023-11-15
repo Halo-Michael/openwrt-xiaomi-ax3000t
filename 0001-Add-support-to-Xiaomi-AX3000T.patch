@@ -1,0 +1,407 @@
+From: Halo Michael <yc992147156@me.com>
+Date: Mon, 13 Nov 2023 20:11:47 +0800
+Subject: [PATCH] Add support to Xiaomi AX3000T
+
+---
+diff --git a/package/boot/uboot-envtools/files/mediatek_filogic b/package/boot/uboot-envtools/files/mediatek_filogic
+index 6e39fac657..048c5a838a 100644
+--- a/package/boot/uboot-envtools/files/mediatek_filogic
++++ b/package/boot/uboot-envtools/files/mediatek_filogic
+@@ -66,6 +66,7 @@ netgear,wax220)
+ 	;;
+ xiaomi,mi-router-wr30u-112m-nmbm|\
+ xiaomi,mi-router-wr30u-stock|\
++xiaomi,mi-router-ax3000t-stock|\
+ xiaomi,redmi-router-ax6000-stock)
+ 	ubootenv_add_uci_config "/dev/mtd1" "0x0" "0x10000" "0x20000"
+ 	ubootenv_add_uci_sys_config "/dev/mtd2" "0x0" "0x10000" "0x20000"
+diff --git a/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t-stock.dts b/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t-stock.dts
+new file mode 100644
+index 0000000000..65162e66dc
+--- /dev/null
++++ b/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t-stock.dts
+@@ -0,0 +1,34 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++/dts-v1/;
++#include "mt7981b-xiaomi-mi-router-ax3000t.dtsi"
++
++/ {
++	model = "Xiaomi Mi Router AX3000T (stock layout)";
++	compatible = "xiaomi,mi-router-ax3000t-stock", "mediatek,mt7981";
++};
++
++&spi_nand {
++	mediatek,nmbm;
++	mediatek,bmt-max-ratio = <1>;
++	mediatek,bmt-max-reserved-blocks = <64>;
++};
++
++&partitions {
++	// ubi_kernel is the ubi partition in stock.
++	partition@600000 {
++		label = "ubi_kernel";
++		reg = <0x600000 0x2200000>;
++	};
++
++	/* ubi is the result of squashing
++	 * consecutive stock partitions:
++	 * - ubi1
++	 * - overlay
++	 * - data
++	 */
++	partition@2800000 {
++		label = "ubi";
++		reg = <0x2800000 0x4e00000>;
++	};
++};
+diff --git a/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t.dtsi b/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t.dtsi
+new file mode 100644
+index 0000000000..9467b18a7e
+--- /dev/null
++++ b/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t.dtsi
+@@ -0,0 +1,249 @@
++// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
++
++/dts-v1/;
++#include <dt-bindings/input/input.h>
++#include <dt-bindings/gpio/gpio.h>
++
++#include "mt7981.dtsi"
++
++/ {
++	aliases {
++		serial0 = &uart0;
++		led-boot = &led_system_yellow;
++		led-failsafe = &led_system_yellow;
++		led-running = &led_system_blue;
++		led-upgrade = &led_system_yellow;
++	};
++
++	chosen {
++		stdout-path = "serial0:115200n8";
++	};
++
++	memory {
++		reg = <0 0x40000000 0 0x10000000>;
++	};
++
++	gpio-keys {
++		compatible = "gpio-keys";
++
++		reset {
++			label = "reset";
++			gpios = <&pio 1 GPIO_ACTIVE_LOW>;
++			linux,code = <KEY_RESTART>;
++		};
++
++		mesh {
++			label = "mesh";
++			gpios = <&pio 0 GPIO_ACTIVE_LOW>;
++			linux,code = <BTN_9>;
++			linux,input-type = <EV_SW>;
++		};
++	};
++
++	leds {
++		compatible = "gpio-leds";
++
++		led_system_blue: system_blue {
++			label = "blue:system";
++			gpios = <&pio 9 GPIO_ACTIVE_LOW>;
++		};
++
++		led_system_yellow: system_yellow {
++			label = "yellow:system";
++			gpios = <&pio 10 GPIO_ACTIVE_LOW>;
++		};
++
++		led_network_blue {
++			label = "blue:network";
++			gpios = <&pio 11 GPIO_ACTIVE_LOW>;
++		};
++
++		led_network_yellow {
++			label = "yellow:network";
++			gpios = <&pio 12 GPIO_ACTIVE_LOW>;
++		};
++	};
++};
++
++&eth {
++	status = "okay";
++
++	gmac0: mac@0 {
++		compatible = "mediatek,eth-mac";
++		reg = <0>;
++		phy-mode = "2500base-x";
++
++		nvmem-cells = <&macaddr_factory_4>;
++		nvmem-cell-names = "mac-address";
++		mac-address-increment = <(-1)>;
++
++		fixed-link {
++			speed = <2500>;
++			full-duplex;
++			pause;
++		};
++	};
++};
++
++&mdio_bus {
++	switch: switch@0 {
++		compatible = "mediatek,mt7531";
++		reg = <31>;
++		reset-gpios = <&pio 39 GPIO_ACTIVE_HIGH>;
++		interrupt-controller;
++		#interrupt-cells = <1>;
++		interrupt-parent = <&pio>;
++		interrupts = <38 IRQ_TYPE_LEVEL_HIGH>;
++	};
++};
++
++&switch {
++	ports {
++		#address-cells = <1>;
++		#size-cells = <0>;
++
++		port@0 {
++			reg = <0>;
++			label = "wan";
++		};
++
++		port@1 {
++			reg = <1>;
++			label = "lan2";
++		};
++
++		port@2 {
++			reg = <2>;
++			label = "lan3";
++		};
++
++		port@3 {
++			reg = <3>;
++			label = "lan4";
++		};
++
++		port@6 {
++			reg = <6>;
++			ethernet = <&gmac0>;
++			phy-mode = "2500base-x";
++
++			fixed-link {
++				speed = <2500>;
++				full-duplex;
++				pause;
++			};
++		};
++	};
++};
++
++&spi0 {
++	pinctrl-names = "default";
++	pinctrl-0 = <&spi0_flash_pins>;
++	status = "okay";
++
++	spi_nand: flash@0 {
++		#address-cells = <1>;
++		#size-cells = <1>;
++		compatible = "spi-nand";
++		reg = <0>;
++
++		spi-max-frequency = <52000000>;
++		spi-tx-buswidth = <4>;
++		spi-rx-buswidth = <4>;
++
++		partitions: partitions {
++			compatible = "fixed-partitions";
++			#address-cells = <1>;
++			#size-cells = <1>;
++
++			partition@0 {
++				label = "BL2";
++				reg = <0x00 0x100000>;
++				read-only;
++			};
++
++			partition@100000 {
++				label = "Nvram";
++				reg = <0x100000 0x40000>;
++			};
++
++			partition@140000 {
++				label = "Bdata";
++				reg = <0x140000 0x40000>;
++			};
++
++			factory: partition@180000 {
++				label = "Factory";
++				reg = <0x180000 0x200000>;
++				read-only;
++
++				compatible = "nvmem-cells";
++				#address-cells = <1>;
++				#size-cells = <1>;
++
++				macaddr_factory_4: macaddr@4 {
++					reg = <0x4 0x6>;
++				};
++			};
++
++			partition@380000 {
++				label = "FIP";
++				reg = <0x380000 0x200000>;
++				read-only;
++			};
++
++			partition@580000 {
++				label = "crash";
++				reg = <0x580000 0x40000>;
++				read-only;
++			};
++
++			partition@5c0000 {
++				label = "crash_log";
++				reg = <0x5c0000 0x40000>;
++				read-only;
++			};
++
++			partition@7600000 {
++				label = "KF";
++				reg = <0x7600000 0x40000>;
++				read-only;
++			};
++		};
++	};
++};
++
++&pio {
++	spi0_flash_pins: spi0-pins {
++		mux {
++			function = "spi";
++			groups = "spi0", "spi0_wp_hold";
++		};
++
++		conf-pu {
++			pins = "SPI0_CS", "SPI0_HOLD", "SPI0_WP";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-up = <MTK_PUPD_SET_R1R0_11>;
++		};
++
++		conf-pd {
++			pins = "SPI0_CLK", "SPI0_MOSI", "SPI0_MISO";
++			drive-strength = <MTK_DRIVE_8mA>;
++			bias-pull-down = <MTK_PUPD_SET_R1R0_11>;
++		};
++	};
++};
++
++&wifi {
++	status = "okay";
++
++	mediatek,mtd-eeprom = <&factory 0x0>;
++};
++
++&uart0 {
++	status = "okay";
++};
++
++&watchdog {
++	status = "okay";
++};
+diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
+index ea126bc46f..3e2c4fbf99 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
++++ b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
+@@ -22,7 +22,8 @@ netgear,wax220)
+ 	;;
+ xiaomi,mi-router-wr30u-112m-nmbm|\
+ xiaomi,mi-router-wr30u-stock|\
+-xiaomi,mi-router-wr30u-ubootmod)
++xiaomi,mi-router-wr30u-ubootmod|\
++xiaomi,mi-router-ax3000t-stock)
+ 	ucidef_set_led_netdev "wan" "wan" "blue:network" "wan"
+ 	;;
+ xiaomi,redmi-router-ax6000-stock|\
+diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+index 93e69e5c85..12ef8aaa29 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
++++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+@@ -57,6 +57,7 @@ mediatek_setup_interfaces()
+ 	xiaomi,mi-router-wr30u-112m-nmbm|\
+ 	xiaomi,mi-router-wr30u-stock|\
+ 	xiaomi,mi-router-wr30u-ubootmod|\
++	xiaomi,mi-router-ax3000t-stock|\
+ 	xiaomi,redmi-router-ax6000-stock|\
+ 	xiaomi,redmi-router-ax6000-ubootmod)
+ 		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" wan
+@@ -114,6 +115,7 @@ mediatek_setup_macs()
+ 	xiaomi,mi-router-wr30u-112m-nmbm|\
+ 	xiaomi,mi-router-wr30u-stock|\
+ 	xiaomi,mi-router-wr30u-ubootmod|\
++	xiaomi,mi-router-ax3000t-stock|\
+ 	xiaomi,redmi-router-ax6000-stock|\
+ 	xiaomi,redmi-router-ax6000-ubootmod)
+ 		wan_mac=$(mtd_get_mac_ascii Bdata ethaddr_wan)
+diff --git a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+index 201fd0cb5e..2b217190d7 100755
+--- a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
++++ b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+@@ -38,7 +38,8 @@ xiaomi_initial_setup()
+ 
+ 	local board=$(board_name)
+ 	case "$board" in
+-	xiaomi,mi-router-wr30u-stock)
++	xiaomi,mi-router-wr30u-stock|\
++	xiaomi,mi-router-ax3000t-stock)
+ 		fw_setenv mtdparts "nmbm0:1024k(bl2),256k(Nvram),256k(Bdata),2048k(factory),2048k(fip),256k(crash),256k(crash_log),34816k(ubi),34816k(ubi1),32768k(overlay),12288k(data),256k(KF)"
+ 		;;
+ 	xiaomi,redmi-router-ax6000-stock)
+@@ -113,6 +114,7 @@ platform_do_upgrade() {
+ 		nand_do_upgrade "$1"
+ 		;;
+ 	xiaomi,mi-router-wr30u-stock|\
++	xiaomi,mi-router-ax3000t-stock|\
+ 	xiaomi,redmi-router-ax6000-stock)
+ 		CI_KERN_UBIPART=ubi_kernel
+ 		CI_ROOT_UBIPART=ubi
+@@ -168,6 +170,7 @@ platform_pre_upgrade() {
+ 
+ 	case "$board" in
+ 	xiaomi,mi-router-wr30u-stock|\
++	xiaomi,mi-router-ax3000t-stock|\
+ 	xiaomi,redmi-router-ax6000-stock)
+ 		xiaomi_initial_setup
+ 		;;
+diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
+index 0f0f311970..52e39984ed 100644
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -584,6 +584,23 @@ endif
+ endef
+ TARGET_DEVICES += xiaomi_mi-router-wr30u-ubootmod
+ 
++define Device/xiaomi_mi-router-ax3000t-stock
++  DEVICE_VENDOR := Xiaomi
++  DEVICE_MODEL := Mi Router AX3000T (stock layout)
++  DEVICE_DTS := mt7981b-xiaomi-mi-router-ax3000t-stock
++  DEVICE_DTS_DIR := ../dts
++  UBINIZE_OPTS := -E 5
++  BLOCKSIZE := 128k
++  PAGESIZE := 2048
++  DEVICE_PACKAGES := kmod-mt7981-firmware mt7981-wo-firmware
++ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
++  ARTIFACTS := initramfs-factory.ubi
++  ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-kernel.bin | ubinize-kernel
++endif
++  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
++endef
++TARGET_DEVICES += xiaomi_mi-router-ax3000t-stock
++
+ define Device/xiaomi_redmi-router-ax6000-stock
+   DEVICE_VENDOR := Xiaomi
+   DEVICE_MODEL := Redmi Router AX6000 (stock layout)
+-- 
+2.34.1
+

@@ -1,0 +1,88 @@
+name: Build OpenWrt
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REPO_URL: https://github.com/openwrt/openwrt
+  REPO_BRANCH: openwrt-23.05
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-2004)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Clone source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        cd openwrt
+        git reset --hard v23.05.2
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    - name: Patch source code
+      run: |
+        cp 0001-Add-support-to-Xiaomi-AX3000T.patch openwrt/
+        cd openwrt
+        git apply --check 0001-Add-support-to-Xiaomi-AX3000T.patch
+        git apply 0001-Add-support-to-Xiaomi-AX3000T.patch
+
+    - name: Load feeds configuration
+      run: |
+        cd openwrt
+        cp feeds.conf.default feeds.conf
+
+    - name: Update feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: |
+        cd openwrt
+        ./scripts/feeds install -a
+
+    - name: Load configuration
+      run: cp xiaomi_mi-router-ax3000t-stock.config openwrt/.config
+
+    - name: Download package
+      id: package
+      run: |
+        cd openwrt
+        make -j$(nproc) download
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 V=s
+        mkdir $GITHUB_WORKSPACE/build
+        cp bin/targets/mediatek/filogic/*.ubi bin/targets/mediatek/filogic/*.bin $GITHUB_WORKSPACE/build/
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      with:
+        name: OpenWrt_bin
+        path: build/
