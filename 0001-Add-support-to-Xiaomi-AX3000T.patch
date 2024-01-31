@@ -60,7 +60,7 @@ new file mode 100644
 index 0000000000..9467b18a7e
 --- /dev/null
 +++ b/target/linux/mediatek/dts/mt7981b-xiaomi-mi-router-ax3000t.dtsi
-@@ -0,0 +1,249 @@
+@@ -0,0 +1,239 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 +
 +/dts-v1/;
