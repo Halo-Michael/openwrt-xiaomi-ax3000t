@@ -115,16 +115,6 @@ index 0000000000..9467b18a7e
 +			label = "yellow:system";
 +			gpios = <&pio 10 GPIO_ACTIVE_LOW>;
 +		};
-+
-+		led_network_blue {
-+			label = "blue:network";
-+			gpios = <&pio 11 GPIO_ACTIVE_LOW>;
-+		};
-+
-+		led_network_yellow {
-+			label = "yellow:network";
-+			gpios = <&pio 12 GPIO_ACTIVE_LOW>;
-+		};
 +	};
 +};
 +
@@ -310,20 +300,6 @@ index 0000000000..9467b18a7e
 +&watchdog {
 +	status = "okay";
 +};
-diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
-index ea126bc46f..3e2c4fbf99 100644
---- a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
-+++ b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
-@@ -22,7 +22,8 @@ netgear,wax220)
- 	;;
- xiaomi,mi-router-wr30u-112m-nmbm|\
- xiaomi,mi-router-wr30u-stock|\
--xiaomi,mi-router-wr30u-ubootmod)
-+xiaomi,mi-router-wr30u-ubootmod|\
-+xiaomi,mi-router-ax3000t-stock)
- 	ucidef_set_led_netdev "wan" "wan" "blue:network" "wan"
- 	;;
- xiaomi,redmi-router-ax6000-stock|\
 diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
 index 93e69e5c85..12ef8aaa29 100644
 --- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
