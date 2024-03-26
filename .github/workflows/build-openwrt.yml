@@ -38,7 +38,7 @@ jobs:
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         cd openwrt
-        git reset --hard v23.05.2
+        git reset --hard v23.05.3
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Patch source code
